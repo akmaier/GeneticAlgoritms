@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tcrga"
+version = "0.1.0"
+description = "Genetic algorithms for optimising paired TCR alpha/beta CDR3 sequences against target peptides"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { file = "LICENSE" }
+authors = [{ name = "Andreas Maier", email = "andreas.maier@fau.de" }]
+keywords = ["genetic-algorithm", "tcr", "immunology", "epitope", "sequence-design"]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "pymoo>=0.6.2,<0.7",
+]
+
+[project.optional-dependencies]
+# Upper bounds below are NOT conservatism -- they are the last releases shipping
+# macOS x86_64 wheels. See docs/environment.md. Harmless on arm64/Linux.
+core = ["matplotlib>=3.8", "tidytcells>=2.0", "peptides>=0.3", "logomaker>=0.8"]
+tcr  = [
+  "biopython>=1.83,<1.87",
+  "scikit-learn>=1.4",
+  "olga>=1.2.4",
+  "numba<0.63",     # transitive via olga
+  "llvmlite<0.46",  # transitive via numba
+]
+# tcrdist3 is intentionally NOT a hard dep: it pins old numpy/parasail and is
+# installed on demand. See docs/predictors.md.
+dl   = ["torch==2.2.2", "fair-esm>=2.0", "epytope>=4.0"]
+dev  = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+tcrga = "tcrga.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tcrga"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "NPY"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
