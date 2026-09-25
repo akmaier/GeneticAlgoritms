@@ -98,6 +98,62 @@ git push -u origin main</code></pre>
     <code>origin</code> has somewhere to push to.)
   </p>
 
+  <h3>Authenticating with GitHub</h3>
+  <div class="callout">
+    <span class="callout-title">A plain password will not work</span>
+    <p>
+      That last command, run exactly as written against an <code>https://</code> remote,
+      will typically fail with <code>remote: Invalid username or token. Password
+      authentication is not supported for Git operations.</code> This is expected, not a
+      sign anything is misconfigured — GitHub disabled password authentication for Git
+      operations over HTTPS in August 2021. It happened while building this project's own
+      website: the push failed with exactly that message, and the fix below is what
+      resolved it.
+    </p>
+  </div>
+  <p>
+    There are three working ways to authenticate. SSH is the recommended default if you
+    expect to push regularly; the other two are reasonable if you would rather not manage
+    a key pair.
+  </p>
+  <p>
+    <strong>SSH.</strong> Generate a key pair (<code>ed25519</code> is the current
+    recommended key type), add the public key to your GitHub account, then point the
+    remote at the SSH URL instead of the HTTPS one:
+  </p>
+  <pre><code>ssh-keygen -t ed25519 -C "your@email"
+# add the printed public key at:
+# github.com &rarr; Settings &rarr; SSH and GPG keys &rarr; New SSH key
+git remote set-url origin git@github.com:&lt;you&gt;/&lt;repo&gt;.git
+ssh -T git@github.com</code></pre>
+  <p>
+    The first time you connect over SSH to a host you have never used before, you will see
+    a prompt along the lines of <em>"The authenticity of host 'github.com' can't be
+    established"</em>, followed by a fingerprint, and asked whether to continue connecting.
+    Do not answer that reflexively. Check the fingerprint it shows you against GitHub's own
+    published list of SSH key fingerprints at
+    <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints">docs.github.com &mdash; GitHub's SSH key fingerprints</a>
+    before accepting it. This is what stops your very first connection to a host from being
+    silently intercepted, and it costs one extra look at a web page. Once accepted, the
+    host is remembered and you will not see the prompt again for that machine.
+  </p>
+  <p>
+    <strong>GitHub CLI.</strong> The <a href="https://cli.github.com">GitHub CLI</a>
+    (<code>gh</code>, a separate install — for example <code>brew install gh</code> on
+    macOS) can handle authentication for you interactively:
+  </p>
+  <pre><code>gh auth login</code></pre>
+  <p>
+    Follow its prompts once, and subsequent <code>git push</code>/<code>git pull</code>
+    commands over HTTPS use the credentials it stored.
+  </p>
+  <p>
+    <strong>Personal access token.</strong> Under github.com &rarr; <strong>Settings</strong>
+    &rarr; <strong>Developer settings</strong> &rarr; <strong>Personal access tokens</strong>,
+    generate a token scoped to <code>repo</code> access, and paste it in place of a
+    password the next time Git prompts you for one over an HTTPS remote.
+  </p>
+
   <h3>Turning on GitHub Pages from the <code>docs/</code> folder</h3>
   <p>
     This site is served directly from the <code>docs/</code> folder of the project's
