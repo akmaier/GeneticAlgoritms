@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Getting started — tcrga</title>
+<meta name="description" content="How to set up the same toolchain used to build tcrga: Claude Code, a GitHub account, and GitHub Pages served from a docs/ folder.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">About</a>
+      <a href="spec-first.html">Spec-first design</a>
+      <a href="prompts.html">Prompts used</a>
+      <a href="getting-started.html" aria-current="page">Getting started</a>
+      <a href="environment.md">Environment notes</a>
+      <a href="predictors.md">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Setting up the same way of working</h1>
+  <p class="lede">
+    This project was built with an AI coding assistant working from a written spec, with
+    the code hosted on GitHub and this site published straight from the repository. None
+    of that requires anything exotic. Here is the practical path to setting up the same
+    toolchain, whatever you plan to build.
+  </p>
+
+  <h2>Claude Code</h2>
+  <p>
+    <a href="https://www.anthropic.com/claude-code">Claude Code</a> is Anthropic's coding
+    agent: a tool that reads and edits files, runs commands, and works through
+    multi-step programming tasks in conversation with you, grounded in your actual
+    codebase rather than a copy-pasted snippet. It is what wrote most of the code and this
+    page, working from the project's README and plan.
+  </p>
+  <p>
+    The most common way to install it is via <a href="https://www.npmjs.com/package/@anthropic-ai/claude-code">npm</a>:
+  </p>
+  <pre><code>npm install -g @anthropic-ai/claude-code</code></pre>
+  <p>
+    Then, from inside a project directory:
+  </p>
+  <pre><code>claude</code></pre>
+  <p>
+    This opens an interactive session in your terminal, with the assistant able to see and
+    modify the files in that directory (subject to permissions it asks you for along the
+    way). You need a Claude account to use it. A useful first command inside a new project
+    is <code>/init</code>, which has the assistant read through the codebase and generate a
+    <code>CLAUDE.md</code> file summarising conventions and context for future sessions.
+  </p>
+  <p>
+    Claude Code is not limited to the terminal. The same agent is available as an
+    extension inside VS Code and JetBrains IDEs, as a desktop application, and on the web
+    at <a href="https://claude.ai/code">claude.ai/code</a> — so the same way of working is
+    available whether you prefer a terminal, an IDE panel, or a browser tab.
+  </p>
+
+  <h2>Working across devices</h2>
+  <p>
+    A practical benefit of running Claude Code sessions is that they are not necessarily
+    tied to the one machine where you started them: a session can be followed and picked
+    back up from elsewhere, and the web interface at
+    <a href="https://claude.ai/code">claude.ai/code</a> provides a cloud-based way to
+    start or continue a coding session without a local terminal at all. If you plan to work
+    this way regularly — starting something on a desktop machine and checking on it from a
+    laptop or phone later — it is worth exploring what claude.ai/code currently offers
+    directly, since the exact interface and capabilities are the kind of thing that
+    improves over time and is best checked at the source rather than assumed from a
+    description here.
+  </p>
+
+  <h2>A GitHub account</h2>
+  <p>
+    <a href="https://github.com">GitHub</a> hosts the repository, tracks its history, and —
+    as used here — serves this website directly from it. Signing up is free, and free
+    accounts include unlimited private repositories. If you are affiliated with a
+    university, <a href="https://education.github.com">GitHub Education</a> is worth
+    applying for: it extends free access to a number of otherwise-paid developer tools.
+  </p>
+  <p>
+    To turn a local project into a GitHub-hosted repository for the first time:
+  </p>
+  <pre><code>git init
+git add &lt;files&gt;
+git commit -m "Initial commit"
+git remote add origin https://github.com/&lt;you&gt;/&lt;repo&gt;.git
+git push -u origin main</code></pre>
+  <p>
+    (Create the empty repository on GitHub's website first, under your account, so
+    <code>origin</code> has somewhere to push to.)
+  </p>
+
+  <h3>Turning on GitHub Pages from the <code>docs/</code> folder</h3>
+  <p>
+    This site is served directly from the <code>docs/</code> folder of the project's
+    <code>main</code> branch, with no separate build step. To enable that on your own
+    repository:
+  </p>
+  <ol>
+    <li>Open your repository on GitHub and go to <strong>Settings</strong>.</li>
+    <li>In the left sidebar, select <strong>Pages</strong>.</li>
+    <li>Under <strong>Build and deployment</strong>, set <strong>Source</strong> to
+      <strong>Deploy from a branch</strong>.</li>
+    <li>Under <strong>Branch</strong>, choose <strong>main</strong> and the folder
+      <strong>/docs</strong>, then save.</li>
+  </ol>
+  <p>
+    GitHub then builds and publishes the site, typically within a minute or two, at
+    <code>https://&lt;you&gt;.github.io/&lt;repo&gt;/</code>. Because this approach serves
+    plain files with no Jekyll build, a <code>.nojekyll</code> file is included in
+    <code>docs/</code> to stop GitHub Pages from trying to process the site with Jekyll and
+    skipping files it thinks are special.
+  </p>
+
+  <h2>Putting it together</h2>
+  <p>
+    None of these three pieces depends on the others technically, but they compose well:
+    a written spec in the repository gives an AI coding assistant something concrete to
+    work from and be checked against (see the <a href="spec-first.html">spec-first design
+    page</a>), GitHub gives that spec and the resulting code a durable, shared home, and
+    GitHub Pages turns part of that same repository into a public explanation of the work
+    with no separate publishing step. This site is that last piece, published from the
+    same <code>docs/</code> folder you are reading right now.
+  </p>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

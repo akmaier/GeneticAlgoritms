@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tcrga — evolving T-cell receptors against a target peptide</title>
+<meta name="description" content="tcrga uses a genetic algorithm to search for paired T-cell receptor alpha/beta sequences predicted to bind a chosen peptide. A research project at FAU Erlangen-Nürnberg.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html" aria-current="page">About</a>
+      <a href="spec-first.html">Spec-first design</a>
+      <a href="prompts.html">Prompts used</a>
+      <a href="getting-started.html">Getting started</a>
+      <a href="environment.md">Environment notes</a>
+      <a href="predictors.md">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Designing T-cell receptors with evolution, not gradients</h1>
+  <p class="lede">
+    <code>tcrga</code> is a research project at
+    <a href="https://www.fau.eu">Friedrich-Alexander-Universität Erlangen-Nürnberg</a>
+    that uses a genetic algorithm to search for T-cell receptor sequences predicted to
+    recognise a peptide you choose. This page explains the problem, why evolution is the
+    right search strategy for it, and — importantly — what the results do and do not mean.
+  </p>
+
+  <div class="callout">
+    <span class="callout-title">The one-sentence version</span>
+    <p>
+      Given a short target peptide, <code>tcrga</code> evolves a population of candidate
+      receptor sequences and keeps the ones a predictive model scores as most likely to
+      bind — producing a shortlist of hypotheses, not confirmed binders.
+    </p>
+  </div>
+
+  <h2>The immune problem, in plain terms</h2>
+  <p>
+    T-cells patrol the body for signs of disease. They do not see whole diseased cells;
+    they see short fragments of protein, called <strong>peptides</strong>, displayed on a
+    cell's surface by a molecular presenting tray (the MHC complex). Sitting on the
+    T-cell's surface is a <strong>T-cell receptor</strong> (TCR) — a Y-shaped protein built
+    from two chains, called <strong>alpha</strong> and <strong>beta</strong>. If the shape
+    of the receptor's tip fits the presented peptide well enough, the T-cell activates and
+    the cell displaying that peptide is marked for destruction. This is, in outline, how the
+    immune system recognises viral infection and some cancers.
+  </p>
+  <p>
+    The part of each chain that actually makes contact with the peptide is a short,
+    highly variable loop called the <strong>CDR3</strong> (complementarity-determining
+    region 3) — typically 8 to 24 amino acids long. Its exact sequence, on both chains
+    together, determines what the receptor recognises.
+  </p>
+  <p>
+    Now flip the problem around: given a peptide of interest — say, one associated with a
+    particular infection or tumour — can you find a pair of CDR3 sequences (alpha and beta)
+    predicted to bind it? This is a search over an enormous space. Each CDR3 is a string
+    drawn from a 20-letter amino-acid alphabet at up to 24 positions, and the two chains
+    have to work <em>together</em>: they contribute jointly and non-additively to
+    recognition, so you cannot optimise one chain and then the other. It is a genuine
+    needle-in-a-haystack problem, and the haystack is bigger than can be enumerated.
+  </p>
+
+  <h2>Why a genetic algorithm</h2>
+  <p>
+    The usual way to search a huge space efficiently is gradient descent: nudge a candidate
+    solution in the direction that a differentiable scoring function says improves it.
+    That requires the scoring function to hand back a gradient — a mathematical derivative —
+    alongside its score.
+  </p>
+  <p>
+    The scoring functions available for TCR-peptide binding do not do that. They are
+    <strong>black boxes</strong>: statistical distance measures over known binders,
+    positional weight matrices, gradient-boosted classifiers, or wrapped neural network
+    predictors. Some of them are differentiable internally, but the project deliberately
+    treats every scorer the same way — as a function that takes a candidate sequence pair
+    and peptide and returns a probability, nothing more — so that scorers can be swapped,
+    combined, or replaced without touching the search itself.
+  </p>
+  <p>
+    A <strong>genetic algorithm</strong> (GA) is a search strategy modelled loosely on
+    evolution: keep a population of candidate solutions, score each one, preferentially
+    keep and recombine the better-scoring ones, introduce small random changes
+    (mutations), and repeat over many generations. Because it only ever needs a score —
+    never a gradient — it works with any scoring function you can plug in, including
+    ones nobody has made differentiable. That is precisely the situation here, which is
+    why <code>tcrga</code> is built around
+    <a href="https://pymoo.org">pymoo</a>, a Python optimisation library, rather than a
+    deep-learning training loop.
+  </p>
+
+  <h2>What the algorithm is actually optimising</h2>
+  <p>
+    The primary objective is a single number: the predicted probability that a given
+    (alpha, beta) sequence pair binds the target peptide. Two further checks act as
+    guard rails rather than co-equal goals:
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Term</th><th>Role</th><th>Direction</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>P(bind | CDR3-alpha, CDR3-beta, peptide)</strong></td><td>the objective</td><td>maximise</td></tr>
+        <tr><td>Biological plausibility (generation probability)</td><td>feasibility constraint</td><td>must stay above a threshold</td></tr>
+        <tr><td>Predicted off-target / cross-reactive binding</td><td>feasibility constraint</td><td>must stay below a threshold</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    A candidate that violates a constraint is treated as infeasible rather than merely
+    penalised, so the search stays pointed squarely at binding while still ruling out
+    sequences that no real thymus would ever produce, or that would likely attack the
+    wrong target.
+  </p>
+
+  <h2>Where the training data comes from</h2>
+  <p>
+    <a href="https://friedmanlab.weizmann.ac.il/McPAS-TCR/">McPAS-TCR</a> is a manually
+    curated database of TCR sequences linked to known diseases, maintained by the Friedman
+    lab at the Weizmann Institute. It pairs CDR3-alpha and CDR3-beta sequences with the
+    peptide each receptor is known to respond to, which is exactly the kind of labelled
+    example the scoring models need. Anyone using results from this project should cite the
+    database (see the <a href="https://github.com/akmaier/GeneticAlgoritms">project
+    README</a> for the full citation).
+  </p>
+
+  <h2>What this is not</h2>
+  <div class="callout">
+    <span class="callout-title">Predicted, not proven</span>
+    <p>
+      Every sequence this tool produces is a <strong>predicted</strong> binder according to
+      a computational model, not a laboratory-confirmed one. Published TCR-peptide
+      binding predictors are known to generalise poorly to peptides they were not trained
+      on — a well-documented limitation of the whole field, not a shortcoming specific to
+      this project. Treat the output as a prioritised, diverse shortlist of hypotheses for
+      experimental validation, never as a validated result on its own.
+    </p>
+    <p>
+      Optimising hard against a single predicted score also has a sharp edge: a genetic
+      algorithm will cheerfully find sequences that score very well and mean nothing
+      biologically, if the scoring function has any exploitable weakness. The
+      <a href="spec-first.html#objective-exploitation">spec-first design page</a> describes
+      a case of exactly that happening during development, and how it became a permanent
+      safeguard.
+    </p>
+  </div>
+
+  <h2>Read more</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3><a href="spec-first.html">Spec-first design</a></h3>
+      <p>Why this project wrote its README and plan before any code, and what that bought it when working with an AI coding assistant.</p>
+    </div>
+    <div class="card">
+      <h3><a href="prompts.html">Prompts used</a></h3>
+      <p>The actual prompts that drove the project, verbatim, as a worked reference.</p>
+    </div>
+    <div class="card">
+      <h3><a href="getting-started.html">Getting started</a></h3>
+      <p>How to set up the same toolchain: Claude Code, a GitHub account, and GitHub Pages.</p>
+    </div>
+    <div class="card">
+      <h3><a href="environment.md">Environment notes</a></h3>
+      <p>Why the project pins Python 3.12 and several dependency versions, with the platform evidence recorded.</p>
+    </div>
+    <div class="card">
+      <h3><a href="predictors.md">Predictor survey</a></h3>
+      <p>What was found when probing whether existing TCR-specificity predictors could be installed and run offline.</p>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

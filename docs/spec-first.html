@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spec-first design — tcrga</title>
+<meta name="description" content="Why tcrga wrote its README and implementation plan before any code, and how that discipline paid off when working with an AI coding assistant.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">About</a>
+      <a href="spec-first.html" aria-current="page">Spec-first design</a>
+      <a href="prompts.html">Prompts used</a>
+      <a href="getting-started.html">Getting started</a>
+      <a href="environment.md">Environment notes</a>
+      <a href="predictors.md">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Write the spec before the code</h1>
+  <p class="lede">
+    Every design decision in <code>tcrga</code> — the Python version, the optimisation
+    library, what the algorithm is even trying to maximise — was written down and reasoned
+    about in <a href="https://github.com/akmaier/GeneticAlgoritms/blob/main/README.md">README.md</a>
+    and <a href="https://github.com/akmaier/GeneticAlgoritms/blob/main/PLAN.md">PLAN.md</a>
+    before a single line of the package existed. This page explains why that order mattered,
+    especially when the person writing the code some of the time is an AI coding assistant.
+  </p>
+
+  <h2>What "spec-first" meant here</h2>
+  <p>
+    Before implementation began, this project answered, in writing:
+  </p>
+  <ul>
+    <li>What is the fitness function actually optimising, and what merely constrains it?
+      (Binding probability is <strong>the</strong> objective; biological plausibility and
+      off-target risk are feasibility constraints, not co-equal goals.)</li>
+    <li>What Python version, and why? (3.12, pinned — see below.)</li>
+    <li>What optimisation engine, and why? (<a href="https://pymoo.org">pymoo</a> 0.6.2,
+      used through its object-typed variable API rather than a hand-rolled loop.)</li>
+    <li>What does the data actually look like, and what are its known problems?
+      (McPAS-TCR's session-gated download, its beta-only rows, its inconsistent gene
+      nomenclature.)</li>
+  </ul>
+  <p>
+    None of this required code. All of it removed ambiguity that would otherwise have
+    surfaced mid-implementation, at a point where undoing a wrong assumption is expensive.
+  </p>
+
+  <h2>Why this matters more, not less, with an AI coding assistant</h2>
+  <p>
+    A written spec is the artefact that both the person and the model can point at. When a
+    prompt says "add the crossover operator," the model still has to guess what the
+    chromosome looks like, what invariants it must preserve, and what "correct" means for
+    this project — unless that is already written down. With a spec:
+  </p>
+  <ul>
+    <li>
+      <strong>Disagreement becomes visible early and cheap.</strong> If the model's reading
+      of the plan doesn't match the author's intent, that mismatch shows up as a question
+      or a strange design choice while it's still one paragraph of text to fix — not as a
+      few hundred lines of code implementing the wrong thing.
+    </li>
+    <li>
+      <strong>Phases end in something runnable.</strong> The plan is explicit that nothing
+      is deferred to a big-bang integration: Phase 0 ends with an importable package, Phase
+      2 ends with the GA running end-to-end against a stub scorer, and so on. Each phase is
+      small enough that a mistake is caught the same day it's made, and the assistant
+      always has a working baseline to extend rather than a half-finished tangle to debug.
+    </li>
+    <li>
+      <strong>The spec constrains hallucination.</strong> An assistant asked to "write a
+      fitness function" with no other context will invent an interface. An assistant told
+      "the fitness is <code>P(bind)</code> in [0, 1], plausibility and off-target are
+      constraints in <code>out["G"]</code>, pymoo minimises so negate the objective" has
+      much less room to drift.
+    </li>
+  </ul>
+
+  <h2>Concrete case: checking a dependency before designing around it</h2>
+  <p>
+    The plan for Phase 0 explicitly set out to retire a risk before writing any scorer
+    code: probe whether <a href="https://github.com/KohlbacherLab/epytope"><code>epytope</code></a>'s
+    TCR-specificity extension — a unified interface to a couple of dozen pre-trained TCR
+    binding predictors — was actually installable and usable. It looked, on paper, like it
+    could shortcut a large chunk of the scoring work.
+  </p>
+  <p>
+    The probe found that it could not, in the form hoped for. The findings are recorded in
+    full in <a href="predictors.md">docs/predictors.md</a>; in short:
+  </p>
+  <ul>
+    <li><code>pip install epytope</code> installs a version with no TCR module at all —
+      the TCR extension exists only in a research fork, not on PyPI.</li>
+    <li>Every wrapped predictor in that fork requires cloning its own separate repository
+      and running it inside its own per-predictor conda environment. There is no bundled,
+      self-contained model.</li>
+    <li>That structure — shelling out to a conda environment per predictor — is
+      architecturally incompatible with a genetic algorithm's inner loop, which needs to
+      score dozens or hundreds of candidates every generation.</li>
+  </ul>
+  <p>
+    Finding this out during planning meant the project could design Phase 3 around
+    torch-free, self-contained scorers (TCRdist distance, positional weight matrices, a
+    gradient-boosted classifier) as the <em>foundation</em>, not a fallback — and treat any
+    future neural predictor integration as a batched, cascade-style addition rather than a
+    per-individual subprocess call. Discovering this mid-implementation, after scorer code
+    had already been written around the wrong assumption, would have cost real time —
+    plausibly days, once you account for the false starts.
+  </p>
+  <p>
+    A related example lives in <a href="environment.md">docs/environment.md</a>: this
+    project is developed on an Intel Mac, and several dependencies (biopython, numba,
+    llvmlite, torch) have dropped macOS x86_64 wheel support in their latest releases,
+    failing to build from source against the machine's outdated compiler toolchain. That
+    was diagnosed and pinned around — with the exact package versions and reasoning
+    recorded — before it could quietly break an installation step later.
+  </p>
+
+  <h2 id="objective-exploitation">Concrete case: the optimiser cheats if you let it</h2>
+  <p>
+    The very first prototype run of the GA used a deliberately naive placeholder scoring
+    function — something quick to wire up just to prove the engine ran end-to-end. That
+    placeholder rewarded sequences containing more tryptophan (one of the twenty amino
+    acids). It seemed harmless: a simple, fast, obviously-not-final stand-in for a real
+    binding predictor.
+  </p>
+  <p>
+    Within 25 generations, the algorithm found <code>CKYIWWWWWAVAWHMF</code> — a sequence
+    that is mostly tryptophan repeated — and scored it at a perfect 1.000. This is not a
+    plausible T-cell receptor sequence by any biological measure. It is what happens when
+    you give a search process a score to maximise and the score has a loophole: the
+    algorithm does not know or care what the score is <em>supposed</em> to mean, it only
+    climbs whatever number you hand it. If the shortest path to a high score runs through
+    nonsense, that is the path it takes.
+  </p>
+  <p>
+    This is worth stating plainly for anyone new to optimisation: <strong>an optimiser
+    exploits whatever you actually give it, not what you meant to give it.</strong> Any
+    time a scoring function has an unintended shortcut, a sufficiently thorough search
+    will find it. This is sometimes called "reward hacking" or "objective exploitation,"
+    and it is a general hazard of automated optimisation, not something specific to this
+    codebase or to genetic algorithms.
+  </p>
+  <p>
+    The response was to turn the failure into a permanent safeguard rather than just fix
+    the placeholder and move on: that exact scenario — a scorer trivially exploitable by a
+    degenerate sequence — is kept as a regression test. Any future scorer, including real
+    trained ones, is checked against it. That is one of the concrete reasons this project's
+    fitness design (see the <a href="index.html">landing page</a>) treats plausibility and
+    off-target binding as hard constraints rather than optional extra terms in a weighted
+    sum: a weighted sum can still be gamed by sacrificing one term for another, while a
+    constraint that must be satisfied cannot be traded away.
+  </p>
+
+  <h2>The takeaway</h2>
+  <p>
+    None of this required exotic process. It required writing down, before coding, what the
+    system should do, what it should never do, and why — then treating a bad result during
+    development as information to encode permanently, rather than a bug to quietly patch.
+    Both habits are just as valuable, arguably more valuable, when part of the
+    implementation work is delegated to an AI coding assistant: the spec is the shared
+    reference that keeps the human and the model pointed at the same target.
+  </p>
+  <p>
+    See <a href="prompts.html">the prompts page</a> for the actual, verbatim prompts that
+    put this into practice on this project.
+  </p>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

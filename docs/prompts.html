@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prompts used — tcrga</title>
+<meta name="description" content="The actual prompts, verbatim, that drove tcrga's planning and implementation with Claude Code — a worked reference for prompting an AI coding assistant on a spec-first project.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">About</a>
+      <a href="spec-first.html">Spec-first design</a>
+      <a href="prompts.html" aria-current="page">Prompts used</a>
+      <a href="getting-started.html">Getting started</a>
+      <a href="environment.md">Environment notes</a>
+      <a href="predictors.md">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>The prompts, verbatim</h1>
+  <p class="lede">
+    This page reproduces the actual prompts used to drive this project with
+    <a href="getting-started.html">Claude Code</a>, in order, exactly as typed —
+    typos included. They are not cleaned up, because the rough edges are part of the
+    point: a working prompt does not need to be a polished sentence, it needs to say the
+    right thing. Each prompt is followed by a short note on what it accomplished.
+  </p>
+
+  <div class="callout">
+    <span class="callout-title">Why verbatim, typos and all</span>
+    <p>
+      It is tempting to tidy these up before publishing them. That would misrepresent how
+      this actually went. None of the prompts below are especially careful writing — they
+      are ordinary working messages, sent in the middle of doing the work, and the project
+      still ended up with a written spec, a working plan, and running code. That gap
+      between "the prompt was a bit sloppy" and "the outcome was structured" is itself the
+      lesson.
+    </p>
+  </div>
+
+  <h2>1. Opening prompt — research and planning, no code yet</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">we want to create a package to run genetic algorithms here. Before we start implementing, I would like to know which python packages are already available, so you will have to conduct a search on this. The goal it to optimise amino acid sequences: alpha and beta chains in t-cell receptors provided peptide sequences. Therefore, it would also be good to know which software packages are available for this in order to get ahead fast. We will use MC-PAS as data source. develop a plan first, then we start coding. Also write a README.md to let visitors know what this repo is about.</div>
+  <p class="prompt-note">
+    This prompt explicitly forbids writing code yet ("develop a plan first, then we start
+    coding") and asks for a landscape survey of existing packages before any design
+    commitment is made. It also names the data source (McPAS) and the deliverable
+    (a README.md) up front, so the assistant knows what "done" looks like for this step
+    without having to ask.
+  </p>
+
+  <h2>2. Sharpening the objective</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">Update plan:
+The fitness score must give higher binding probability/priorty between alpha/beta TCR sequence and peptide sequences.
+
+This is a research project for FAU Erlangen Nuremberg</div>
+  <p class="prompt-note">
+    This is a correction to the objective's <em>priority</em>, not its content — binding
+    probability was already part of the plan, but this prompt insists it must dominate.
+    That single change in emphasis reshaped the whole fitness design: binding probability
+    became the one true objective to maximise, and everything else (plausibility,
+    off-target risk) was demoted to a feasibility constraint rather than sitting alongside
+    it as a co-equal goal in a weighted sum. Being specific about what should dominate,
+    even in a short and slightly garbled sentence ("priorty"), changed the architecture
+    more than a longer, more polished prompt about the topic in general terms would have.
+  </p>
+
+  <h2>3. Settling the open technical decisions</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">Thank you. No continue updating the plan. I want python 3.12 as baseline and use pymoo for the GA.</div>
+  <p class="prompt-note">
+    The assistant had presumably surfaced a short list of open technical questions during
+    planning; this prompt answers two of them in one line each. Short, decisive prompts
+    like this work well precisely because the question behind them was well-posed —
+    the assistant asked something specific and answerable, and the person answered it
+    directly instead of re-explaining context. There was no need for elaboration once the
+    decision was made.
+  </p>
+
+  <h2>4. Authorising implementation</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">Please start phase 0, then continue to the first prototype.</div>
+  <p class="prompt-note">
+    This authorises a bounded amount of work — one named phase from the plan, plus a first
+    prototype — rather than "build the whole thing." Because the plan (see
+    <a href="spec-first.html">the spec-first page</a>) was already written so that each
+    phase ends in something runnable, a short instruction like this was enough: the scope
+    was already defined by the document both sides were pointing at, not by this message.
+  </p>
+
+  <h2>5. Delegating this website — a prompt about prompting</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">spawn a subagent that sets up the website in GitHub pages including a description of our spec-first design approach, the idea of the project of a layman scientist audience: also describe how to set up Claude cli, remote-access, a GitHub account that will help others to implement projects like this more easily. do this in the background not to distract your work. GitHub page root is set up in docs/ subagent can work there in parallel and commit and push as soon as it is ready.</div>
+  <p class="prompt-note">
+    This prompt (which is what produced the site you are reading) delegates a genuinely
+    separate task — building a public-facing website — to its own agent with its own
+    scope, so that it runs in parallel instead of interrupting the main implementation
+    thread. It also specifies a boundary (work happens in <code>docs/</code>) and an
+    audience (a layman-scientist reader) up front, both of which shaped this page.
+  </p>
+
+  <h2>6. This addition</h2>
+  <p class="prompt-label">As typed</p>
+  <div class="prompt-block">Also put the prompts we used on the GitHub page for reference as how to do this.</div>
+  <p class="prompt-note">
+    A short follow-up, sent after the site was already underway, asking for exactly the
+    page you are reading now. It is included here for completeness — and because a
+    one-line follow-up that adds a well-scoped page to an already-running task is itself
+    a small example of the pattern the rest of this page is describing.
+  </p>
+
+  <h2>What these six prompts have in common</h2>
+  <ul>
+    <li>The first prompt asks for research and a plan, and explicitly says not to code yet.</li>
+    <li>Corrections named what should <em>dominate</em>, not just what should be included — a
+      change in priority rather than a change in scope.</li>
+    <li>Decisions were made in short, direct answers once the assistant had asked a
+      well-formed question — there is no need to pad a clear answer.</li>
+    <li>Authorisation to build was scoped to a named phase, not "everything."</li>
+    <li>Work that could genuinely run in parallel was handed to a separate agent, with an
+      explicit boundary on where it was allowed to touch the repository.</li>
+  </ul>
+  <p>
+    None of this depends on writing eloquent prompts. It depends on being specific about
+    scope, priority, and boundaries — the same three things a good spec is specific about.
+    See <a href="spec-first.html">the spec-first design page</a> for how that discipline
+    played out in the project's actual architecture decisions.
+  </p>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
