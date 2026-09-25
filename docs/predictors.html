@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Predictor survey — tcrga</title>
+<meta name="description" content="What tcrga found when probing whether existing TCR-specificity predictors, including ePytope-TCR, could actually be installed and run offline.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">About</a>
+      <a href="spec-first.html">Spec-first design</a>
+      <a href="prompts.html">Prompts used</a>
+      <a href="getting-started.html">Getting started</a>
+      <a href="environment.html">Environment notes</a>
+      <a href="predictors.html" aria-current="page">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>TCR specificity predictors: what is actually usable offline</h1>
+  <p class="lede">
+    This page mirrors the repository's
+    <a href="https://github.com/akmaier/GeneticAlgoritms/blob/main/docs/predictors.md"><code>docs/predictors.md</code></a>
+    — read that file directly on GitHub for the canonical, always-current version. It
+    records the findings from the Phase 0 risk-retirement probe, 2026-09-25.
+  </p>
+
+  <h2>ePytope-TCR is not on PyPI</h2>
+  <p>
+    <code>pip install epytope</code> gives <strong>epytope 4.0.1 with no TCR module</strong>.
+    Its submodules are <code>CleavagePrediction, Core, Data, EpitopeAssembly,
+    EpitopePrediction, EpitopeSelection, HLAtyping, IO, TAPPrediction</code> — no
+    <code>TCRSpecificityPrediction</code>. The same is true of
+    <code>KohlbacherLab/epytope</code> on both <code>main</code> and <code>develop</code>.
+  </p>
+  <p>
+    ePytope-TCR lives <strong>only</strong> in the fork used for the benchmark paper:
+  </p>
+  <ul>
+    <li>Framework: <a href="https://github.com/SchubertLab/epytope">github.com/SchubertLab/epytope</a>
+      &rarr; <code>epytope/TCRSpecificityPrediction/</code></li>
+    <li>Benchmark study: <a href="https://github.com/SchubertLab/benchmark_TCRprediction">github.com/SchubertLab/benchmark_TCRprediction</a></li>
+  </ul>
+
+  <h2>The 22 wrapped predictors</h2>
+  <p>
+    <code>External.py</code> (17) — <code>Ergo1</code>, <code>Ergo2</code>,
+    <code>pMTnet</code>, <code>EpiTCR</code>, <code>ATM_TCR</code>, <code>AttnTAP</code>,
+    <code>TEIM</code>, <code>BERTrand</code>, <code>TEINet</code>, <code>PanPep</code>,
+    <code>DLpTCR</code>, <code>TULIP</code>, <code>iTCep</code>, <code>NetTCR22</code>,
+    <code>MixTCRpred</code>, <code>TCRGP</code>
+  </p>
+  <p>
+    <code>ML.py</code> (5) — <code>ImRex</code>, <code>TITAN</code>,
+    <code>TCellMatch</code>, <code>STAPLER</code>
+  </p>
+
+  <h2>The catch: none of them are self-contained</h2>
+  <p>
+    Every <code>External</code> predictor inherits <code>ARepoTCRSpecificityPrediction</code>,
+    which <strong>requires the user to clone that predictor's own repository</strong> and
+    pass its path:
+  </p>
+  <pre><code>raise AttributeError("Please provide 'repository' as a input argument to predict ...
+                      'git clone {self.repo}'")</code></pre>
+  <p>
+    Execution then shells out through <code>conda run -n &lt;env&gt; &lt;interpreter&gt;
+    &lt;cmd&gt;</code> — each predictor runs in <strong>its own conda environment</strong>,
+    which is why the benchmark repo ships <code>docker/envs/</code>. Model weights are
+    likewise obtained per-predictor from the original publications; nothing is bundled.
+  </p>
+  <p>
+    <strong>This machine has no conda installed.</strong>
+  </p>
+
+  <h2>Consequences for <code>tcrga</code></h2>
+  <ol>
+    <li>
+      <strong>The torch-free scorers are not a fallback, they are the foundation.</strong>
+      TCRdist kNN, the per-peptide PWM and the GBDT classifier are the only scorers that
+      will run here without a multi-day environment build. Phase 3 order stands.
+    </li>
+    <li>
+      <strong>Subprocess-per-individual is architecturally impossible</strong> in a GA
+      inner loop — conda activation plus process spawn per candidate, per generation. If a
+      neural predictor is ever wired in, it must be through the <strong>cascade</strong>
+      path: one batched call per generation over the top-K survivors only, not per
+      individual. The <code>BindingScorer</code> batch signature already allows this;
+      <code>ensemble.py</code> must enforce it.
+    </li>
+    <li>
+      <strong>The <code>dl</code> extra stays optional and unimported.</strong> Do not add
+      ePytope-TCR as a dependency. If needed later, vendor a thin adapter behind the
+      existing <code>BindingScorer</code> protocol and document the per-predictor setup
+      separately.
+    </li>
+  </ol>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

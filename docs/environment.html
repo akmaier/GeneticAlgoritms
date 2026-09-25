@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Environment notes — tcrga</title>
+<meta name="description" content="Why tcrga pins Python 3.12 and several dependency versions: macOS x86_64 wheel availability, observed build failures, and the exact versions used as a workaround.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="index.html">tcrga</a>
+    <span class="site-tagline">Evolving T-cell receptor sequences against a target peptide</span>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">About</a>
+      <a href="spec-first.html">Spec-first design</a>
+      <a href="prompts.html">Prompts used</a>
+      <a href="getting-started.html">Getting started</a>
+      <a href="environment.html" aria-current="page">Environment notes</a>
+      <a href="predictors.html">Predictor survey</a>
+      <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Environment notes</h1>
+  <p class="lede">
+    This page mirrors the repository's
+    <a href="https://github.com/akmaier/GeneticAlgoritms/blob/main/docs/environment.md"><code>docs/environment.md</code></a>
+    — read that file directly on GitHub for the canonical, always-current version. It
+    records why the project pins Python 3.12 and a handful of exact dependency versions,
+    and the platform evidence behind those pins.
+  </p>
+
+  <p>
+    Baseline: <strong>Python 3.12</strong>, virtualenv at <code>.venv</code>.
+  </p>
+
+  <h2>Why the upper version bounds in <code>pyproject.toml</code></h2>
+  <p>
+    This project is developed on an <strong>Intel Mac (x86_64)</strong>, and the Python
+    scientific ecosystem is actively dropping that platform. Several dependencies now
+    publish <strong>arm64-only</strong> macOS wheels, so pip falls back to a source build —
+    which then fails against the system toolchain.
+  </p>
+  <p>
+    Observed on 2026-09-25 (macOS 15.8, Apple clang 11.0.3 from Command Line Tools):
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Package</th><th>Latest</th><th>macOS x86_64 wheel?</th><th>Pinned to</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>biopython</code></td><td>1.88</td><td>arm64 only</td><td><code>&lt;1.87</code> (1.86 has <code>macosx_10_13_x86_64</code>)</td></tr>
+        <tr><td><code>numba</code> (via <code>olga</code>)</td><td>0.67.0</td><td>arm64 only</td><td><code>&lt;0.63</code> (0.62.1 has <code>macosx_10_15_x86_64</code>)</td></tr>
+        <tr><td><code>llvmlite</code> (via <code>numba</code>)</td><td>0.49.0</td><td>arm64 only</td><td><code>&lt;0.46</code> (0.45.1 has <code>macosx_10_15_x86_64</code>)</td></tr>
+        <tr><td><code>torch</code></td><td>2.14.0</td><td>none since 2.2.2</td><td><code>==2.2.2</code> in the <code>dl</code> extra</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The source builds fail with <code>clang: error: invalid version number in
+    'MACOSX_DEPLOYMENT_TARGET=14'</code> — the installed Command Line Tools (clang 11.0.3,
+    2020) are far older than the OS. Updating them with <code>xcode-select --install</code>
+    would allow source builds and let the bounds be relaxed, but pinning to the last
+    wheel-shipping release is cheaper and reproducible.
+  </p>
+  <p>
+    <strong>These bounds are harmless on arm64 and Linux</strong>, where newer wheels exist
+    for everything. They are a platform workaround, not a compatibility claim — revisit
+    when the dev machine changes.
+  </p>
+
+  <h2>torch</h2>
+  <p>
+    <code>torch</code> is confined to the <code>dl</code> extra, pinned to
+    <code>2.2.2</code> (last macOS x86_64 build, Python &le;3.12, CPU only — no MPS on
+    Intel). Nothing in <code>tcrga</code> imports it at module scope, so the package
+    installs and runs fully without it.
+  </p>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="meta-links">
+      <a href="https://github.com/akmaier/GeneticAlgoritms">github.com/akmaier/GeneticAlgoritms</a>
+      &middot; Research project by Andreas Maier,
+      <a href="https://www.fau.eu">FAU Erlangen-Nürnberg</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

@@ -17,8 +17,8 @@
       <a href="spec-first.html">Spec-first design</a>
       <a href="prompts.html">Prompts used</a>
       <a href="getting-started.html">Getting started</a>
-      <a href="environment.md">Environment notes</a>
-      <a href="predictors.md">Predictor survey</a>
+      <a href="environment.html">Environment notes</a>
+      <a href="predictors.html">Predictor survey</a>
       <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
     </nav>
   </div>
@@ -133,6 +133,22 @@
     database (see the <a href="https://github.com/akmaier/GeneticAlgoritms">project
     README</a> for the full citation).
   </p>
+  <p>
+    The database's own export has no stable download link — its CSV export is generated
+    per browser session — so <code>tcrga</code> fetches it with a small script
+    (<code>scripts/fetch_mcpas.py</code>) that drives a headless browser to click the
+    site's own download control, the same way a person would, rather than trying to guess
+    a URL.
+  </p>
+  <p>
+    The raw export is large but the usable signal inside it is much smaller: of
+    40,731 rows, only 4,988 survive cleaning as usable paired alpha/beta records (most
+    rows are beta chain only), and just 38 peptides have 10 or more distinct paired
+    receptors behind them — the minimum needed for a scorer to learn anything peptide-specific.
+    About 59% of all rows carry no epitope annotation at all. Knowing these numbers before
+    designing the scorers, rather than after, is itself an example of the project's
+    <a href="spec-first.html">spec-first approach</a>.
+  </p>
 
   <h2>What this is not</h2>
   <div class="callout">
@@ -170,11 +186,11 @@
       <p>How to set up the same toolchain: Claude Code, a GitHub account, and GitHub Pages.</p>
     </div>
     <div class="card">
-      <h3><a href="environment.md">Environment notes</a></h3>
+      <h3><a href="environment.html">Environment notes</a></h3>
       <p>Why the project pins Python 3.12 and several dependency versions, with the platform evidence recorded.</p>
     </div>
     <div class="card">
-      <h3><a href="predictors.md">Predictor survey</a></h3>
+      <h3><a href="predictors.html">Predictor survey</a></h3>
       <p>What was found when probing whether existing TCR-specificity predictors could be installed and run offline.</p>
     </div>
   </div>

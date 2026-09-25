@@ -17,8 +17,8 @@
       <a href="spec-first.html" aria-current="page">Spec-first design</a>
       <a href="prompts.html">Prompts used</a>
       <a href="getting-started.html">Getting started</a>
-      <a href="environment.md">Environment notes</a>
-      <a href="predictors.md">Predictor survey</a>
+      <a href="environment.html">Environment notes</a>
+      <a href="predictors.html">Predictor survey</a>
       <a href="https://github.com/akmaier/GeneticAlgoritms">GitHub repo</a>
     </nav>
   </div>
@@ -95,7 +95,7 @@
   </p>
   <p>
     The probe found that it could not, in the form hoped for. The findings are recorded in
-    full in <a href="predictors.md">docs/predictors.md</a>; in short:
+    full in <a href="predictors.html">docs/predictors.md</a>; in short:
   </p>
   <ul>
     <li><code>pip install epytope</code> installs a version with no TCR module at all —
@@ -117,12 +117,38 @@
     plausibly days, once you account for the false starts.
   </p>
   <p>
-    A related example lives in <a href="environment.md">docs/environment.md</a>: this
+    A related example lives in <a href="environment.html">docs/environment.md</a>: this
     project is developed on an Intel Mac, and several dependencies (biopython, numba,
     llvmlite, torch) have dropped macOS x86_64 wheel support in their latest releases,
     failing to build from source against the machine's outdated compiler toolchain. That
     was diagnosed and pinned around — with the exact package versions and reasoning
     recorded — before it could quietly break an installation step later.
+  </p>
+
+  <h2>Concrete case: the real dataset is much smaller than the raw export</h2>
+  <p>
+    McPAS-TCR's export lists 40,731 rows, and it would be easy to plan a scorer around a
+    figure that size. Actually loading and cleaning the data told a different story:
+  </p>
+  <ul>
+    <li>Roughly <strong>59% of rows carry no epitope annotation at all</strong>, so they
+      cannot supervise a peptide-specific scorer regardless of how the rest of the pipeline
+      is built.</li>
+    <li>The database is heavily skewed toward beta-chain-only entries; only
+      <strong>4,988 rows</strong> survive cleaning as usable, checksum-validated
+      <em>paired</em> alpha/beta records — the unit this project's scorers actually need,
+      since binding is a joint property of both chains together.</li>
+    <li>Of those, only <strong>38 peptides</strong> have 10 or more distinct paired
+      receptors behind them — a rough floor for a scorer to learn anything peptide-specific
+      rather than noise.</li>
+  </ul>
+  <p>
+    None of this changes what the project builds, but it changes what any run of it can
+    honestly claim: a scorer trained against this data has real supervision for a few dozen
+    peptides, not tens of thousands of rows' worth of coverage. Measuring that before
+    writing scorer code, rather than after training something on an assumed-large dataset,
+    is the same habit as the two cases above: check what you actually have before designing
+    around what you hoped you had.
   </p>
 
   <h2 id="objective-exploitation">Concrete case: the optimiser cheats if you let it</h2>
