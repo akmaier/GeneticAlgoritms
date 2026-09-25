@@ -8,7 +8,7 @@ Each phase below ends in something runnable. Nothing is deferred to a big-bang i
 
 ---
 
-## Phase 0 — Environment and skeleton
+## Phase 0 — Environment and skeleton ✅
 
 **Goal:** `pip install -e ".[core,tcr]"` works and an empty `tcrga` imports.
 
@@ -30,7 +30,7 @@ offline inventory now than to discover it in Phase 3. Record the findings in `do
 
 ---
 
-## Phase 1 — Data
+## Phase 1 — Data ✅
 
 **Goal:** McPAS on disk becomes a clean, validated, queryable binder set.
 
@@ -43,7 +43,11 @@ offline inventory now than to discover it in Phase 3. Record the findings in `do
 | `tcrga/data/binders.py` | `BinderSet(peptide)` → known binders, plus a background/decoy sampler |
 
 **Done when:** `tcrga data summary` prints per-peptide paired-chain counts, and the split
-function is unit-tested to guarantee zero epitope overlap.
+function is unit-tested to guarantee zero epitope overlap. *Both hold.* The real McPAS CSV
+is still a manual download, so the suite runs against `tests/fixtures/make_fixture.py`,
+which reproduces the export's defects rather than a clean idealisation: latin-1 bytes,
+null sentinels in eight spellings, lowercase junctions, nucleotide strings in amino-acid
+columns, stripped anchors, duplicate clones and a 60% beta-only skew.
 
 **Note:** McPAS is Shiny-served with a session-gated CSV export, so the download stays manual
 (documented in the README). The loader validates; it does not scrape.
