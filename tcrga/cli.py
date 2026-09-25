@@ -50,6 +50,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     summary.add_argument("--top", type=int, default=20, help="epitopes to list")
     summary.add_argument("--min-binders", type=int, default=10)
+    summary.add_argument("--species", default=None, help="restrict to Human or Mouse")
     return parser
 
 
@@ -111,12 +112,12 @@ def _cmd_data_summary(args: argparse.Namespace) -> int:
 
     print("\nafter cleaning, by policy:")
     for policy in PairingPolicy:
-        frame, report = normalise(raw, policy=policy)
+        frame, report = normalise(raw, policy=policy, species=args.species)
         kept = report.n_output
         print(f"  {policy.value:18s} {kept:6,} rows   {frame['peptide'].nunique():4,} epitopes")
     print("  (dropped: invalid junctions, unusable epitopes, missing chains)")
 
-    frame, report = normalise(raw, policy=PairingPolicy(args.policy))
+    frame, report = normalise(raw, policy=PairingPolicy(args.policy), species=args.species)
     print(f"\nselected policy: {args.policy}")
     for key, value in report.as_dict().items():
         print(f"  {key:26s} {value}")

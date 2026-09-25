@@ -73,3 +73,28 @@ def test_data_summary_cli_runs(mcpas_csv, capsys):
     out = capsys.readouterr().out
     assert "paired a/b" in out
     assert "peptide-grouped" in out
+
+
+def test_holdout_gets_enough_epitopes_despite_skew():
+    """Regression: a pure row-budget fill gave the test set two huge epitopes.
+
+    McPAS abundance is extremely skewed, so 20% of rows can be bought with two epitopes.
+    A holdout that small cannot support any claim about generalising to unseen epitopes,
+    which is the only thing these splits exist to measure.
+    """
+    import pandas as pd
+
+    # One 500-row epitope plus many singletons: the pathological shape of real McPAS.
+    rows = [{"peptide": "BIG", "alpha": "CAAAAAAAAAW", "beta": "CAAAAAAAAAF"}] * 500
+    rows += [{"peptide": f"P{i}", "alpha": "CAAAAAAAAAW", "beta": "CAAAAAAAAAF"} for i in range(60)]
+    frame = pd.DataFrame(rows)
+
+    splits = peptide_grouped_split(frame, test_size=0.2, seed=0, min_holdout_epitopes=5)
+    assert splits["test"]["peptide"].nunique() >= 5
+    assert set(splits["train"]["peptide"]).isdisjoint(set(splits["test"]["peptide"]))
+    assert len(splits["train"]) > 0
+
+
+def test_min_holdout_epitopes_is_respected(clean_frame):
+    splits = peptide_grouped_split(clean_frame, test_size=0.2, seed=0, min_holdout_epitopes=3)
+    assert splits["test"]["peptide"].nunique() >= 3

@@ -9,6 +9,10 @@ free of predicted off-target binding.
 
 Research project, [Friedrich-Alexander-Universität Erlangen-Nürnberg](https://www.fau.eu).
 
+📖 **[Project website](https://akmaier.github.io/GeneticAlgoritms/)** — the same ideas for a
+general scientific audience, plus a write-up of the spec-first way this repository was
+built, the prompts used to drive it, and a guide to setting up the same toolchain.
+
 > **Status: early / pre-implementation.** The plan and environment analysis below are
 > settled; the package itself is being built. Expect the API to change.
 
@@ -58,15 +62,30 @@ CDR3-alpha / CDR3-beta sequences together with TRAV/TRAJ/TRBV/TRBJ gene usage, t
 protein, the epitope peptide, MHC restriction and CD4/CD8 lineage — which is precisely the
 (TCR, peptide) supervision this project needs.
 
-**The database is not scriptable.** McPAS-TCR is served by a Shiny application and its CSV
-export is behind a per-session token, so there is no stable download URL. Fetch it manually:
+**The database has no static download URL.** McPAS-TCR is an R/Shiny application whose
+export link carries a per-session token, so a copied URL returns 404 minutes later. The
+fetcher drives a headless browser to click the site's own download control:
 
-1. Open <https://friedmanlab.weizmann.ac.il/McPAS-TCR/>
-2. Click **Search** with an empty query to return the full database
-3. Choose **Download complete database**, and save the CSV to `data/raw/McPAS-TCR.csv`
+```bash
+pip install playwright && playwright install chromium
+python scripts/fetch_mcpas.py          # -> data/raw/McPAS-TCR.csv
+```
 
-The loader validates the schema and records a checksum, so a stale or truncated file is
-caught early rather than silently degrading the fitness landscape.
+It validates the file on arrival and prints a checksum, because a download that lands but
+does not parse is worse than one that fails: everything downstream would quietly use it.
+
+**What the export actually contains** is much less than its size suggests, and the gap
+drives most of the design decisions here:
+
+| | |
+|---|---|
+| Rows in the export | 40,731 |
+| With no epitope annotation at all | 24,020 (59%) |
+| Usable paired alpha/beta rows after cleaning | **4,988** |
+| Epitopes with ≥10 distinct paired receptors | **38** of 263 |
+| Mouse share of paired rows | 41% (vs 9% of the raw file) |
+
+Run `tcrga data summary` for the current numbers on your copy.
 
 **If you use this project, cite McPAS-TCR:** Tickotsky N, Sagiv T, Prilusky J, Shifrut E,
 Friedman N (2017). *McPAS-TCR: A manually-curated catalogue of pathology-associated T cell

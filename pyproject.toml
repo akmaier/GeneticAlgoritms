@@ -37,6 +37,8 @@ tcr  = [
 # installed on demand. See docs/predictors.md.
 dl   = ["torch==2.2.2", "fair-esm>=2.0", "epytope>=4.0"]
 dev  = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.11"]
+# Only for scripts/fetch_mcpas.py; the package itself never imports it.
+fetch = ["playwright>=1.40"]
 
 [project.scripts]
 tcrga = "tcrga.cli:main"

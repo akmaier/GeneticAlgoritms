@@ -72,3 +72,44 @@ def test_anchorless_junction_is_dropped_not_repaired():
     out, report = normalise(frame, normalise_genes=False)
     assert len(out) == 0
     assert report.dropped_invalid_alpha == 1
+
+
+def test_species_filter_restricts_rows():
+    frame = pd.DataFrame(
+        {
+            "CDR3.alpha.aa": ["CAVRDSNYQLIW"] * 4,
+            "CDR3.beta.aa": ["CASSLGQAYEQYF"] * 4,
+            "Epitope.peptide": ["GILGFVFTL"] * 4,
+            "Species": ["Human", "Mouse", "Human", "Mouse"],
+        }
+    )
+    human, report = normalise(frame, species="Human", normalise_genes=False)
+    assert len(human) == 2
+    assert report.dropped_species == 2
+    assert report.species_counts == {"Human": 2}
+
+    both, report_both = normalise(frame, normalise_genes=False)
+    assert len(both) == 4
+    assert report_both.dropped_species == 0
+
+
+def test_mouse_gene_symbols_are_not_forced_through_human_reference():
+    """McPAS is ~9% mouse, and mouse symbols do not exist in the human IMGT reference.
+
+    Standardising everything as human left those rows unreconciled and emitted thousands
+    of failures. The Species column must drive the lookup.
+    """
+    frame = pd.DataFrame(
+        {
+            "CDR3.alpha.aa": ["CAVRDSNYQLIW"] * 2,
+            "CDR3.beta.aa": ["CASSLGQAYEQYF"] * 2,
+            "Epitope.peptide": ["SIINFEKL"] * 2,
+            "Species": ["Mouse", "Human"],
+            "TRAV": ["TRAV3N-3", "TRAV12-2"],
+        }
+    )
+    out, report = normalise(frame)
+    assert len(out) == 2
+    # Both rows keep a usable gene label; neither is blanked by a failed lookup.
+    assert all(str(v) for v in out["TRAV"])
+    assert report.genes_unresolved == 0

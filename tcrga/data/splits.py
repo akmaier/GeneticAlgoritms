@@ -26,13 +26,20 @@ def peptide_grouped_split(
     val_size: float = 0.0,
     seed: int = 0,
     peptide_column: str = "peptide",
+    min_holdout_epitopes: int = 5,
 ) -> dict[str, pd.DataFrame]:
     """Partition rows so that no epitope appears in more than one split.
 
-    Epitopes are assigned whole, and in descending order of how many TCRs they carry, so
-    the rare very-abundant epitopes do not all land in one split and skew its size. The
-    returned proportions are therefore approximate -- exact proportions are impossible
-    when groups are indivisible and wildly unequal in size.
+    Balancing rows alone is not enough. McPAS epitope abundance is extremely skewed --
+    the largest epitope carries over 500 paired TCRs while the median carries one -- so a
+    greedy fill by row count hands the test set two enormous epitopes and stops. That
+    split has the requested 20% of rows and is useless: measuring generalisation to
+    unseen epitopes across two epitopes measures almost nothing.
+
+    So assignment tracks two deficits at once, rows and distinct epitopes, and gives each
+    epitope to whichever split is furthest behind on either. Exact proportions remain
+    impossible -- groups are indivisible and wildly unequal -- but both quantities stay
+    in a usable range.
     """
     if not 0.0 <= test_size < 1.0:
         raise ValueError("test_size must be in [0, 1)")
@@ -45,25 +52,49 @@ def peptide_grouped_split(
 
     counts = frame[peptide_column].value_counts()
     rng = np.random.default_rng(seed)
-    # Shuffle within equal counts so ties are not broken by pandas' ordering.
     order = counts.sample(frac=1.0, random_state=int(rng.integers(0, 2**31))).sort_values(
         ascending=False, kind="stable"
     )
 
-    n_total = len(frame)
-    targets = {"test": test_size * n_total, "val": val_size * n_total}
-    assigned: dict[str, list[str]] = {"train": [], "val": [], "test": []}
-    filled = {"test": 0, "val": 0}
+    n_rows, n_epitopes = len(frame), len(counts)
+    holdouts = {k: v for k, v in (("test", test_size), ("val", val_size)) if v > 0}
+    row_target = {k: v * n_rows for k, v in holdouts.items()}
+    epi_target = {
+        k: max(min(min_holdout_epitopes, n_epitopes // (len(holdouts) + 1)), int(v * n_epitopes))
+        for k, v in holdouts.items()
+    }
 
+    assigned: dict[str, list[str]] = {"train": [], "val": [], "test": []}
+    rows_filled = dict.fromkeys(holdouts, 0)
+
+    # Pass 1: fill row budgets, largest epitope first. A holdout that has reached its row
+    # target takes nothing more here, which is what stops one 500-TCR epitope from
+    # swallowing the split.
     for peptide, n in order.items():
-        # Greedy: give each epitope to whichever holdout is furthest from its target.
-        deficits = {k: targets[k] - filled[k] for k in ("test", "val") if targets[k] > 0}
-        best = max(deficits, key=lambda k: deficits[k]) if deficits else None
-        if best is not None and deficits[best] > 0:
+        hungry = {k: row_target[k] - rows_filled[k] for k in holdouts}
+        hungry = {k: v for k, v in hungry.items() if v > 0}
+        if hungry:
+            best = max(hungry, key=lambda k: hungry[k])
             assigned[best].append(str(peptide))
-            filled[best] += int(n)
+            rows_filled[best] += int(n)
         else:
             assigned["train"].append(str(peptide))
+
+    # Pass 2: top up epitope counts using the *smallest* remaining training epitopes, so
+    # a holdout reaches a usable number of distinct epitopes at minimal cost in rows.
+    # Without this a 20% row budget buys only two or three epitopes on skewed data, and a
+    # test set that small cannot support a claim about unseen-epitope generalisation.
+    ascending = [p for p in order.index[::-1] if str(p) in set(assigned["train"])]
+    for name in holdouts:
+        deficit = epi_target[name] - len(assigned[name])
+        if deficit <= 0:
+            continue
+        # Never strip training down to nothing chasing an epitope target.
+        movable = ascending[: max(0, min(deficit, len(assigned["train"]) - n_epitopes // 2))]
+        for peptide in movable:
+            assigned["train"].remove(str(peptide))
+            assigned[name].append(str(peptide))
+            ascending.remove(peptide)
 
     splits = {
         name: frame[frame[peptide_column].isin(peptides)].reset_index(drop=True)

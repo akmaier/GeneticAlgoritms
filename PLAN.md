@@ -130,9 +130,16 @@ and the poly-tryptophan regression test fails any scorer that is trivially explo
 
 ## Open questions
 
-- **Beta-only rows.** McPAS has substantially more beta-only than paired entries. Do we
-  restrict to paired data (smaller, cleaner) or impute/marginalise over alpha (larger,
-  noisier)? Affects every downstream scorer; decide with the Phase 1 counts in hand.
+- **Beta-only rows.** Counts are now in (`tcrga data summary`): paired-only gives 4,988
+  rows over 263 epitopes, include-beta-only gives 14,716 over 354. Only 38 epitopes carry
+  ≥10 distinct paired receptors either way, so the extra beta-only data widens epitope
+  coverage more than it deepens any single epitope. Still to decide, and it affects every
+  scorer.
+- **Species.** Mouse is 9% of the raw export but 41% of usable *paired* rows, because
+  paired sequencing is commoner in mouse work. Mouse receptors engage H-2, not HLA, so a
+  single scorer across both fits two recognition problems at once. `--species Human`
+  leaves 2,949 rows and 28 usable epitopes. Filtering is available; the default keeps
+  both and records the mix.
 - **Off-target panel.** Which non-target peptides define specificity — a fixed common panel,
   or peptides sampled per run by similarity to the target?
 - **MHC conditioning.** McPAS carries MHC restriction. Ignored in v1; worth revisiting, since
